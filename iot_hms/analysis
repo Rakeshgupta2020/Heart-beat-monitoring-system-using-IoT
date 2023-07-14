@@ -1,0 +1,40 @@
+channelID =  1922178;
+
+% Provide the ThingSpeak alerts API key.  All alerts API keys start with TAK.
+alertApiKey = 'TAKiYJu9OHuTQk8FKbS';
+
+% Set the address for the HTTTP call
+alertUrl="https://api.thingspeak.com/alerts/send";
+
+% webwrite uses weboptions to add required headers.  Alerts needs a ThingSpeak-Alerts-API-Key header.
+options = weboptions("HeaderFields", ["ThingSpeak-Alerts-API-Key", alertApiKey ]);
+
+% Set the email subject.
+alertSubject = sprintf("BPM Threshold crossed");
+
+% Read the recent data.
+bpm_Data = thingSpeakRead(channelID);
+
+% Check to make sure the data was read correctly from the channel.
+if isempty(bpm_Data)
+    alertBody = ' No data read from person. ';      
+else
+    % Calculate a 10% threshold value based on recent data.
+    span = max(bpm_Data) - min(bpm_Data);
+    dryValue = 0.1 * span + min(bpm_Data);
+    lastValue = bpm_Data(end); 
+
+    % Set the outgoing message
+    if (lastValue<=dryValue)
+        alertBody = 'Alert!!,changes in bpm! ';
+    elseif (lastValue>dryValue)
+        alertBody = ' No worries ';
+    end
+end
+ 
+ % Catch errors so the MATLAB code does not disable a TimeControl if it fails
+try
+    webwrite(alertUrl , "body", alertBody, "subject", alertSubject, options);
+catch someException
+    fprintf("Failed to send alert: %s\n", someException.message);
+end
